@@ -10,7 +10,7 @@ use std::{
 
 use crate::aio::{AsyncStream, RedisRuntime};
 use crate::types::RedisResult;
-#[cfg(feature = "tls")]
+#[cfg(feature = "tls-native")]
 use async_native_tls::{TlsConnector, TlsStream};
 use async_std::net::TcpStream;
 #[cfg(unix)]
@@ -149,7 +149,7 @@ impl RedisRuntime for AsyncStd {
             .map(|con| Self::Tcp(AsyncStdWrapped::new(con)))?)
     }
 
-    #[cfg(feature = "tls")]
+    #[cfg(feature = "tls-native")]
     async fn connect_tcp_tls(
         hostname: &str,
         socket_addr: SocketAddr,

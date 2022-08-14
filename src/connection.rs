@@ -15,14 +15,14 @@ use crate::types::{
 #[cfg(unix)]
 use std::os::unix::net::UnixStream;
 
-#[cfg(feature = "tls")]
+#[cfg(feature = "tls-native")]
 use native_tls::{TlsConnector, TlsStream};
 
-#[cfg(feature = "rustls")]
+#[cfg(feature = "tls-rustls")]
 use rustls::{OwnedTrustAnchor, RootCertStore, StreamOwned};
-#[cfg(feature = "rustls")]
+#[cfg(feature = "tls-rustls")]
 use std::{convert::TryInto, sync::Arc};
-#[cfg(feature = "rustls")]
+#[cfg(feature = "tls-rustls")]
 use webpki_roots::TLS_SERVER_ROOTS;
 
 static DEFAULT_PORT: u16 = 6379;
@@ -80,7 +80,7 @@ impl ConnectionAddr {
     pub fn is_supported(&self) -> bool {
         match *self {
             ConnectionAddr::Tcp(_, _) => true,
-            ConnectionAddr::TcpTls { .. } => cfg!(any(feature = "tls", feature = "rustls")),
+            ConnectionAddr::TcpTls { .. } => cfg!(any(feature = "tls-native", feature = "tls-rustls")),
             ConnectionAddr::Unix(_) => cfg!(unix),
         }
     }
@@ -176,7 +176,7 @@ fn url_to_tcp_connection_info(url: url::Url) -> RedisResult<ConnectionInfo> {
     };
     let port = url.port().unwrap_or(DEFAULT_PORT);
     let addr = if url.scheme() == "rediss" {
-        #[cfg(any(feature = "tls", feature = "rustls"))]
+        #[cfg(any(feature = "tls-native", feature = "tls-rustls"))]
         {
             match url.fragment() {
                 Some("insecure") => ConnectionAddr::TcpTls {
@@ -196,7 +196,7 @@ fn url_to_tcp_connection_info(url: url::Url) -> RedisResult<ConnectionInfo> {
             }
         }
 
-        #[cfg(not(any(feature = "tls", feature = "rustls")))]
+        #[cfg(not(any(feature = "tls-native", feature = "tls-rustls")))]
         fail!((
             ErrorKind::InvalidClientConfig,
             "can't connect with TLS, the feature is not enabled"
@@ -287,13 +287,13 @@ struct TcpConnection {
     open: bool,
 }
 
-#[cfg(feature = "tls")]
+#[cfg(feature = "tls-native")]
 struct TcpTlsConnection {
     reader: TlsStream<TcpStream>,
     open: bool,
 }
 
-#[cfg(feature = "rustls")]
+#[cfg(feature = "tls-rustls")]
 struct TcpRustlsConnection {
     reader: StreamOwned<rustls::ClientConnection, TcpStream>,
     open: bool,
@@ -310,9 +310,9 @@ struct UnixConnection {
 #[allow(clippy::large_enum_variant)]
 enum ActualConnection {
     Tcp(TcpConnection),
-    #[cfg(feature = "tls")]
+    #[cfg(feature = "tls-native")]
     TcpTls(TcpTlsConnection),
-    #[cfg(feature = "rustls")]
+    #[cfg(feature = "tls-rustls")]
     TcpRustls(TcpRustlsConnection),
     #[cfg(unix)]
     Unix(UnixConnection),
@@ -402,7 +402,7 @@ impl ActualConnection {
                     open: true,
                 })
             }
-            #[cfg(all(feature = "tls", not(feature = "rustls")))]
+            #[cfg(all(feature = "tls-native", not(feature = "tls-rustls")))]
             ConnectionAddr::TcpTls {
                 ref host,
                 port,
@@ -461,7 +461,7 @@ impl ActualConnection {
                     open: true,
                 })
             }
-            #[cfg(feature = "rustls")]
+            #[cfg(feature = "tls-rustls")]
             ConnectionAddr::TcpTls {
                 ref host,
                 port,
@@ -506,7 +506,7 @@ impl ActualConnection {
 
                 ActualConnection::TcpRustls(TcpRustlsConnection { reader, open: true })
             }
-            #[cfg(not(any(feature = "tls", feature = "rustls")))]
+            #[cfg(not(any(feature = "tls-native", feature = "tls-rustls")))]
             ConnectionAddr::TcpTls { .. } => {
                 fail!((
                     ErrorKind::InvalidClientConfig,
@@ -543,7 +543,7 @@ impl ActualConnection {
                     Ok(_) => Ok(Value::Okay),
                 }
             }
-            #[cfg(feature = "tls")]
+            #[cfg(feature = "tls-native")]
             ActualConnection::TcpTls(ref mut connection) => {
                 let res = connection.reader.write_all(bytes).map_err(RedisError::from);
                 match res {
@@ -556,7 +556,7 @@ impl ActualConnection {
                     Ok(_) => Ok(Value::Okay),
                 }
             }
-            #[cfg(feature = "rustls")]
+            #[cfg(feature = "tls-rustls")]
             ActualConnection::TcpRustls(ref mut connection) => {
                 let res = connection.reader.write_all(bytes).map_err(RedisError::from);
                 match res {
@@ -590,11 +590,11 @@ impl ActualConnection {
             ActualConnection::Tcp(TcpConnection { ref reader, .. }) => {
                 reader.set_write_timeout(dur)?;
             }
-            #[cfg(feature = "tls")]
+            #[cfg(feature = "tls-native")]
             ActualConnection::TcpTls(TcpTlsConnection { ref reader, .. }) => {
                 reader.get_ref().set_write_timeout(dur)?;
             }
-            #[cfg(feature = "rustls")]
+            #[cfg(feature = "tls-rustls")]
             ActualConnection::TcpRustls(TcpRustlsConnection { ref reader, .. }) => {
                 reader.get_ref().set_write_timeout(dur)?;
             }
@@ -611,11 +611,11 @@ impl ActualConnection {
             ActualConnection::Tcp(TcpConnection { ref reader, .. }) => {
                 reader.set_read_timeout(dur)?;
             }
-            #[cfg(feature = "tls")]
+            #[cfg(feature = "tls-native")]
             ActualConnection::TcpTls(TcpTlsConnection { ref reader, .. }) => {
                 reader.get_ref().set_read_timeout(dur)?;
             }
-            #[cfg(feature = "rustls")]
+            #[cfg(feature = "tls-rustls")]
             ActualConnection::TcpRustls(TcpRustlsConnection { ref reader, .. }) => {
                 reader.get_ref().set_read_timeout(dur)?;
             }
@@ -630,9 +630,9 @@ impl ActualConnection {
     pub fn is_open(&self) -> bool {
         match *self {
             ActualConnection::Tcp(TcpConnection { open, .. }) => open,
-            #[cfg(feature = "tls")]
+            #[cfg(feature = "tls-native")]
             ActualConnection::TcpTls(TcpTlsConnection { open, .. }) => open,
-            #[cfg(feature = "rustls")]
+            #[cfg(feature = "tls-rustls")]
             ActualConnection::TcpRustls(TcpRustlsConnection { open, .. }) => open,
             #[cfg(unix)]
             ActualConnection::Unix(UnixConnection { open, .. }) => open,
@@ -640,7 +640,7 @@ impl ActualConnection {
     }
 }
 
-#[cfg(feature = "rustls")]
+#[cfg(feature = "tls-rustls")]
 pub(crate) fn create_rustls_config(insecure: bool) -> RedisResult<rustls::ClientConfig> {
     let mut root_store = RootCertStore::empty();
     root_store.add_server_trust_anchors(TLS_SERVER_ROOTS.0.iter().map(|ta| {
@@ -929,11 +929,11 @@ impl Connection {
             ActualConnection::Tcp(TcpConnection { ref mut reader, .. }) => {
                 self.parser.parse_value(reader)
             }
-            #[cfg(feature = "tls")]
+            #[cfg(feature = "tls-native")]
             ActualConnection::TcpTls(TcpTlsConnection { ref mut reader, .. }) => {
                 self.parser.parse_value(reader)
             }
-            #[cfg(feature = "rustls")]
+            #[cfg(feature = "tls-rustls")]
             ActualConnection::TcpRustls(TcpRustlsConnection { ref mut reader, .. }) => {
                 self.parser.parse_value(reader)
             }
@@ -954,12 +954,12 @@ impl Connection {
                         let _ = connection.reader.shutdown(net::Shutdown::Both);
                         connection.open = false;
                     }
-                    #[cfg(feature = "tls")]
+                    #[cfg(feature = "tls-native")]
                     ActualConnection::TcpTls(ref mut connection) => {
                         let _ = connection.reader.shutdown();
                         connection.open = false;
                     }
-                    #[cfg(feature = "rustls")]
+                    #[cfg(feature = "tls-rustls")]
                     ActualConnection::TcpRustls(ref mut connection) => {
                         let _ = connection.reader.get_mut().shutdown(net::Shutdown::Both);
                         connection.open = false;

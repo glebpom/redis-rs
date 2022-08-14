@@ -64,7 +64,7 @@ redis = { version = "0.17.0", features = ["async-std-comp"] }
 To enable TLS support, you need to use the relevant feature entry in your Cargo.toml.
 
 ```
-redis = { version = "0.19.0", features = ["tls"] }
+redis = { version = "0.19.0", features = ["tls-native"] }
 
 # if you use tokio
 redis = { version = "0.19.0", features = ["tokio-native-tls-comp"] }

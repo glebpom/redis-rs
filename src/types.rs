@@ -247,7 +247,7 @@ impl From<Utf8Error> for RedisError {
     }
 }
 
-#[cfg(feature = "tls")]
+#[cfg(feature = "tls-native")]
 impl From<native_tls::Error> for RedisError {
     fn from(err: native_tls::Error) -> RedisError {
         RedisError {
@@ -260,7 +260,7 @@ impl From<native_tls::Error> for RedisError {
     }
 }
 
-#[cfg(feature = "rustls")]
+#[cfg(feature = "tls-rustls")]
 impl From<rustls::Error> for RedisError {
     fn from(err: rustls::Error) -> RedisError {
         RedisError {
@@ -273,7 +273,7 @@ impl From<rustls::Error> for RedisError {
     }
 }
 
-#[cfg(feature = "rustls")]
+#[cfg(feature = "tls-rustls")]
 impl From<rustls::client::InvalidDnsNameError> for RedisError {
     fn from(err: rustls::client::InvalidDnsNameError) -> RedisError {
         RedisError {

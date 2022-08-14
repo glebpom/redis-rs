@@ -107,7 +107,7 @@ impl ClusterConnection {
             password,
             read_timeout: RefCell::new(None),
             write_timeout: RefCell::new(None),
-            #[cfg(feature = "tls")]
+            #[cfg(feature = "tls-native")]
             tls: {
                 if initial_nodes.is_empty() {
                     None
@@ -124,7 +124,7 @@ impl ClusterConnection {
                     }
                 }
             },
-            #[cfg(not(feature = "tls"))]
+            #[cfg(not(feature = "tls-native"))]
             tls: None,
             initial_nodes,
         };
